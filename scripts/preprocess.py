@@ -32,6 +32,8 @@ def main(config: ConfigDict):
             init=i,
             num_subsamples=config.get("num_subsamples", 1),
             num_per_subsample=config.get("num_per_subsample", None),
+            num_per_subsample_min=config.get("num_per_subsample_min", None),
+            num_per_subsample_max=config.get("num_per_subsample_max", None),
             phi1_min=config.phi1_min,
             phi1_max=config.phi1_max,
             uncertainty_model=config.get('uncertainty_model', None),

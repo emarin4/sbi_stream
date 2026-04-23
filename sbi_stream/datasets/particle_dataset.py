@@ -23,6 +23,8 @@ def read_raw_particle_datasets(
     init: int = 0,
     num_subsamples: int = 1,
     num_per_subsample: int = None,
+    num_per_subsample_min: int = None,
+    num_per_subsample_max: int = None,
     phi1_min: Optional[float] = None,
     phi1_max: Optional[float] = None,
     uncertainty_model: Optional[str] = None,
@@ -92,16 +94,26 @@ def read_raw_particle_datasets(
             feat = np.stack([data[f][ptr[j]:ptr[j+1]] for f in features], axis=1)
             label = table[labels].iloc[j].values
 
+            print("RAW phi1 size:", len(phi1)) #ADDED CHECK
+
             mask = (phi1_min <= phi1) & (phi1 < phi1_max)
             phi1 = phi1[mask]
             phi2 = phi2[mask]
             feat = feat[mask]
+
+            print("AFTER mask:", np.sum(mask)) #ADDED CHECK
+
 
             for _ in range(num_subsamples):
                 # Subsample particles if specified
                 if num_per_subsample is not None:
                     phi1_ppr, phi2_ppr, feat_ppr = preprocess_utils.subsample_arrays(
                         [phi1, phi2, feat], num_per_subsample=num_per_subsample)
+
+                elif (num_per_subsample_min is not None) and (num_per_subsample_max is not None):
+                    N = np.random.randint(num_per_subsample_min, num_per_subsample_max)
+                    phi1_ppr, phi2_ppr, feat_ppr = preprocess_utils.subsample_arrays(
+                        [phi1, phi2, feat], num_per_subsample=N)
 
                 # Add uncertainty if specified
                 phi1_ppr, phi2_ppr, feat_ppr, _, feat_unc_ppr = preprocess_utils.add_uncertainty(

@@ -10,15 +10,15 @@ from pygaia.errors.astrometric import proper_motion_uncertainty
 
 def calculate_derived_properties(table):
     ''' Calculate derived properties that are not stored in the dataset '''
-    table['log_M_sat'] = np.log10(table['M_sat'])
-    table['log_rs_sat'] = np.log10(table['rs_sat'])
-    table['sin_phi'] = np.sin(table['phi'] / 360 * 2 * np.pi)
-    table['cos_phi'] = np.cos(table['phi'] / 360 * 2 * np.pi)
-    table['r_sin_phi'] = table['r'] * table['sin_phi']
-    table['r_cos_phi'] = table['r'] * table['cos_phi']
-    table['vz_abs'] = np.abs(table['vz'])
-    table['vphi_abs'] = np.abs(table['vphi'])
-    table['vtotal'] = np.sqrt(table['vphi']**2 + table['vz']**2)
+    # table['log_M_sat'] = np.log10(table['M_sat'])
+    # table['log_rs_sat'] = np.log10(table['rs_sat'])
+    # table['sin_phi'] = np.sin(table['phi'] / 360 * 2 * np.pi)
+    # table['cos_phi'] = np.cos(table['phi'] / 360 * 2 * np.pi)
+    # table['r_sin_phi'] = table['r'] * table['sin_phi']
+    # table['r_cos_phi'] = table['r'] * table['cos_phi']
+    # table['vz_abs'] = np.abs(table['vz'])
+    # table['vphi_abs'] = np.abs(table['vphi'])
+    # table['vtotal'] = np.sqrt(table['vphi']**2 + table['vz']**2)
     return table
 
 def approximate_arc_length(spline, x_arr):
