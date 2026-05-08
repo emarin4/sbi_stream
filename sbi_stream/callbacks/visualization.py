@@ -71,7 +71,7 @@ class NPEVisualizationCallback(pl.Callback):
         total_samples = 0
         for batch in loader:
             all_batches.append(batch)
-            total_samples += batch.num_graphs if hasattr(batch, 'num_graphs') else len(batch)
+            total_samples += self._get_batch_size(batch)
             if total_samples >= self.n_val_samples:
                 break
 
@@ -80,7 +80,7 @@ class NPEVisualizationCallback(pl.Callback):
             return
 
         # Extract true parameters
-        all_true = torch.cat([b.y for b in all_batches], dim=0)[:self.n_val_samples]
+        all_true = torch.cat([self._get_batch_labels(b) for b in all_batches], dim=0)[:self.n_val_samples]
 
         # Sample from posterior
         pl_module.eval()
@@ -119,6 +119,33 @@ class NPEVisualizationCallback(pl.Callback):
             trainer.logger.experiment.log(log_data)
 
         plt.close('all')
+
+    def _get_batch_size(self, batch) -> int:
+        """Return the number of samples in a batch.
+
+        Handles PyG Data objects (``batch.num_graphs``) and plain tuple/list
+        batches from TensorDataset (``len(batch[0])``).
+        """
+        if hasattr(batch, 'num_graphs'):
+            return batch.num_graphs
+        elif isinstance(batch, (list, tuple)):
+            return len(batch[0])
+        return len(batch)
+
+    def _get_batch_labels(self, batch) -> torch.Tensor:
+        """Extract label tensor from a batch.
+
+        Handles PyG Data objects (``batch.y``) and plain tuple/list batches
+        from TensorDataset (``batch[1]``).
+        """
+        if hasattr(batch, 'y'):
+            return batch.y
+        elif isinstance(batch, (list, tuple)):
+            return batch[1]
+        raise ValueError(
+            f"Cannot extract labels from batch of type {type(batch)}. "
+            "Expected a PyG Data object or a (inputs, labels) tuple."
+        )
 
     def _plot_median_posterior(self, true_params, samples):
         """Plot median posterior estimates vs. true parameter values.

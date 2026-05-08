@@ -15,12 +15,12 @@ from tqdm import tqdm
 from . import io_utils, preprocess_utils
 
 
-def read_raw_particle_datasets(
+def read_and_process_raw(
     data_dir: Union[str, Path],
     features: List[str],
     labels: List[str],
     num_datasets: int = 1,
-    init: int = 0,
+    start_dataset: int = 0,
     num_subsamples: int = 1,
     num_per_subsample: int = None,
     phi1_min: Optional[float] = None,
@@ -41,8 +41,8 @@ def read_raw_particle_datasets(
         List of labels to use for the regression.
     num_datasets : int, optional
         Number of datasets to read in. Default is 1.
-    init : int, optional
-        Initial to start reading the dataset. Default is 0.
+    start_dataset : int, optional
+        Index to start reading the dataset. Default is 0.
     num_subsamples : int, optional
         Number of subsamples to use. Default is 1.
     num_per_subsample : int, optional
@@ -71,7 +71,7 @@ def read_raw_particle_datasets(
 
     graph_list = []
 
-    for i in range(init, init + num_datasets):
+    for i in range(start_dataset, start_dataset + num_datasets):
         label_fn = os.path.join(data_dir, f'labels.{i}.csv')
         data_fn = os.path.join(data_dir, f'data.{i}.hdf5')
 
@@ -124,10 +124,10 @@ def read_raw_particle_datasets(
     return graph_list
 
 
-def read_processed_particle_datasets(
+def read_processed(
     data_dir: Union[str, Path],
     num_datasets: int = 1,
-    init: int = 0,
+    start_dataset: int = 0,
 ):
     """
     Read preprocessed particle-level stream datasets from pickle files as PyTorch Geometric graphs.
@@ -138,7 +138,7 @@ def read_processed_particle_datasets(
         Path to the directory containing the processed data files.
     num_datasets : int, optional
         Number of datasets to read in. Default is 1.
-    init : int, optional
+    start_dataset : int, optional
         Index to start reading the dataset. Default is 0.
 
     Returns
@@ -148,7 +148,7 @@ def read_processed_particle_datasets(
     """
     graph_list = []
 
-    for i in tqdm(range(init, init + num_datasets)):
+    for i in tqdm(range(start_dataset, start_dataset + num_datasets)):
         data_path = os.path.join(data_dir, f'data.{i}.pkl')
         if not os.path.exists(data_path):
             continue
@@ -168,7 +168,7 @@ def read_processed_particle_datasets(
     return graph_list
 
 
-def prepare_particle_dataloaders(
+def prepare_dataloaders(
     data: List[Data],
     norm_dict: dict = None,
     train_frac: float = 0.8,
@@ -302,7 +302,7 @@ def prepare_particle_dataloaders(
     return train_loader, val_loader, norm_dict
 
 
-def prepare_particle_test_dataloader(
+def prepare_test_dataloader(
     data: List[Data],
     norm_dict: dict,
     test_batch_size: int = 32,

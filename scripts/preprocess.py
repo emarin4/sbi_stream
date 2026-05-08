@@ -26,22 +26,33 @@ def main(config: ConfigDict):
 
     print(f"Processing raw data from {input_dir} and saving to {output_dir}")
     for i in tqdm(range(config.start_dataset, config.start_dataset + config.num_datasets)):
-        data = datasets.read_raw_particle_datasets(
-            input_dir, config.features, config.labels,
+        data = datasets.read_and_process_raw_datasets(
+            input_dir,
+            data_format=config.data_format,
+            features=config.features,
+            labels=config.labels,
             num_datasets=1,
-            init=i,
+            start_dataset=i,
             num_subsamples=config.get("num_subsamples", 1),
-            num_per_subsample=config.get("num_per_subsample", None),
-            phi1_min=config.phi1_min,
-            phi1_max=config.phi1_max,
-            uncertainty_model=config.get('uncertainty_model', None),
-            include_uncertainty=config.get('include_uncertainty', False),
+            **config.get("dataset_args", {})
         )
+
         if data is not None:
             data_out_path = os.path.join(output_dir, f'data.{i}.pkl')
-            print(f"Saving processed data to {data_out_path}")
-            with open(data_out_path, "wb") as f:
-                pickle.dump(data, f)
+
+            if config.data_format == 'matched_filter':
+                data_dict = {
+                    'signal': data[0],
+                    'bg_lsst': data[1],
+                    'bg_roman': data[2],
+                    'labels': data[3],
+                }
+                with open(data_out_path, "wb") as f:
+                    pickle.dump(data_dict, f)
+            else:
+                print(f"Saving processed data to {data_out_path}")
+                with open(data_out_path, "wb") as f:
+                    pickle.dump(data, f)
         else:
             print(f"Error processing dataset {i}, skipping...")
 

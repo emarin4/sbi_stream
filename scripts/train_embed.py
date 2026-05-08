@@ -21,7 +21,7 @@ from absl import flags
 from ml_collections import config_flags
 
 from sbi_stream import datasets
-from sbi_stream.models import GNNEmbedding, TransformerEmbedding
+from sbi_stream.models import GNNEmbedding, TransformerEmbedding, CNNEmbedding
 from sbi_stream.transforms import build_transformation
 
 
@@ -68,14 +68,18 @@ def prepare_data(config: ml_collections.ConfigDict):
     Returns:
         Tuple of (train_loader, val_loader, norm_dict)
     """
+    data_format = config.data.get('data_format', 'particle')
+    data_dir = os.path.join(config.data.root, config.data.name)
+
     # read in the dataset and prepare the data loader for training
     if config.data.data_type == 'raw':
-        dataset = datasets.read_raw_particle_datasets(
-            os.path.join(config.data.root, config.data.name),
+        dataset = datasets.read_and_process_raw_datasets(
+            data_dir,
+            data_format=data_format,
             features=config.data.features,
             labels=config.data.labels,
             num_datasets=config.data.get('num_datasets', 1),
-            init=config.data.get('start_dataset', 0),
+            start_dataset=config.data.get('start_dataset', 0),
             # preprocessing arguments
             num_subsamples=config.data.get('num_subsamples', 1),
             num_per_subsample=config.data.get('num_per_subsample', None),
@@ -85,23 +89,26 @@ def prepare_data(config: ml_collections.ConfigDict):
             include_uncertainty=config.data.get('include_uncertainty', False),
         )
     elif config.data.data_type == 'preprocessed':
-        dataset = datasets.read_processed_particle_datasets(
-            os.path.join(config.data.root, config.data.name),
+        dataset = datasets.read_processed_datasets(
+            data_dir,
+            data_format=data_format,
             num_datasets=config.data.get('num_datasets', 1),
-            init=config.data.get('start_dataset', 0),
+            start_dataset=config.data.get('start_dataset', 0),
         )
     else:
         raise ValueError(f"Unknown data_type {config.data.data_type}")
 
     # Create dataloaders with existing norm_dict
-    train_loader, val_loader, norm_dict = datasets.prepare_particle_dataloaders(
+    train_loader, val_loader, norm_dict = datasets.prepare_dataloaders(
         dataset,
+        data_format=data_format,
         train_frac=config.train_frac,
         train_batch_size=config.train_batch_size,
         eval_batch_size=config.eval_batch_size,
         num_workers=config.num_workers,
         num_subsamples=config.data.get('num_subsamples', 1),
         seed=config.get('seed_data', 0),
+        channels=config.data.get('channels', None),
     )
     return train_loader, val_loader, norm_dict
 
@@ -143,6 +150,19 @@ def create_model(
             loss_type=config.model.loss_type,
             loss_args=config.model.get('loss_args', None),
             mlp_args=config.model.get('mlp', None),
+            optimizer_args=config.optimizer,
+            scheduler_args=config.scheduler,
+            pre_transforms=pre_transforms,
+            norm_dict=norm_dict,
+        )
+    elif config.model.type == 'cnn':
+        print("[Model] Creating CNN Embedding model...")
+        return CNNEmbedding(
+            in_channels=config.model.in_channels,
+            cnn_args=config.model.cnn.to_dict(),
+            mlp_args=config.model.mlp.to_dict(),
+            loss_type=config.model.get('loss_type', 'mse'),
+            loss_args=config.model.get('loss_args', None),
             optimizer_args=config.optimizer,
             scheduler_args=config.scheduler,
             pre_transforms=pre_transforms,
@@ -229,10 +249,13 @@ def main(config: ml_collections.ConfigDict, workdir: str = "./logging/"):
     train_loader, val_loader, norm_dict = prepare_data(config)
     print(f"[Data] Train batches: {len(train_loader)}, Val batches: {len(val_loader)}")
 
-    # Build pre-transforms
+    # Build pre-transforms (None for image-based models like CNN)
     print("[Transforms] Building pre-transforms...")
-    pre_transforms = build_transformation(
-        norm_dict=norm_dict, **config.pre_transforms)
+    if config.get('pre_transforms') is not None:
+        pre_transforms = build_transformation(
+            norm_dict=norm_dict, **config.pre_transforms)
+    else:
+        pre_transforms = None
 
     # Create model
     print("[Model] Creating GNN embedding model...")
