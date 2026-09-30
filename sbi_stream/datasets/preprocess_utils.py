@@ -10,8 +10,9 @@ from pygaia.errors.astrometric import proper_motion_uncertainty
 
 def calculate_derived_properties(table):
     ''' Calculate derived properties that are not stored in the dataset '''
-    # table['log_M_sat'] = np.log10(table['M_sat'])
-    # table['log_rs_sat'] = np.log10(table['rs_sat'])
+    table['log_mass'] = np.log10(table['mass'])
+    table['log_scale_radius'] = np.log10(table['scale_radius'])
+    #table['log_impact_parameter'] = np.log10(table['impact_parameter'])
     # table['sin_phi'] = np.sin(table['phi'] / 360 * 2 * np.pi)
     # table['cos_phi'] = np.cos(table['phi'] / 360 * 2 * np.pi)
     # table['r_sin_phi'] = table['r'] * table['sin_phi']
