@@ -12,6 +12,10 @@ from torch_geometric.loader import DataLoader
 from torch_geometric import transforms as T
 from tqdm import tqdm
 
+#new 8/15
+import pickle
+from functools import lru_cache
+
 from . import io_utils, preprocess_utils
 
 
@@ -124,10 +128,19 @@ def read_and_process_raw(
     return graph_list
 
 
+# Full label ordering used when the preprocessed pickle files were generated.
+PREPROCESSED_LABELS = [
+    'log_mass', 'log_scale_radius', 'phi1_impact_today', 'time_impact',
+    'impact_parameter', 'v_rel_para', 'v_rel_perp',
+    'angle_pos_at_impact', 'delta_angle',
+]
+
+
 def read_processed(
     data_dir: Union[str, Path],
     num_datasets: int = 1,
     start_dataset: int = 0,
+    labels: Optional[List[str]] = None,
 ):
     """
     Read preprocessed particle-level stream datasets from pickle files as PyTorch Geometric graphs.
@@ -140,6 +153,9 @@ def read_processed(
         Number of datasets to read in. Default is 1.
     start_dataset : int, optional
         Index to start reading the dataset. Default is 0.
+    labels : list of str, optional
+        Subset of ``PREPROCESSED_LABELS`` to keep as ``g.y`` columns, in the
+        given order. Default is None (keep all labels).
 
     Returns
     -------
@@ -156,6 +172,8 @@ def read_processed(
         with open(data_path, "rb") as f:
             graphs = pickle.load(f)
 
+        #graphs = torch.load(data_path, map_location='cpu', weights_only=False)
+
         # If the pickle file contains a list of Data objects, extend graph_list
         # Otherwise, if it's a single Data object, append it
         if isinstance(graphs, list):
@@ -165,7 +183,60 @@ def read_processed(
 
     print('Total number of graphs loaded: {}'.format(len(graph_list)))
 
+    labels = labels if labels is not None else PREPROCESSED_LABELS
+    label_indices = torch.tensor([PREPROCESSED_LABELS.index(name) for name in labels])
+
+    for g in graph_list:
+        g.y = g.y[:, label_indices]
+
     return graph_list
+
+
+@lru_cache(maxsize=None)
+def _load_track_poly(path):
+    with open(path, "rb") as f:
+        info = pickle.load(f)
+    track = np.poly1d(info["coeffs"])
+    return track, info
+
+
+def _subtract_track_from_data(data, feature_names, track_feature, track_path):
+    """Subtracts one or more fitted polynomial tracks from node features.
+
+    track_path can be either:
+      - a single path (str), detrending `track_feature` only, or
+      - a dict {feature_name: path}, detrending each listed feature
+        against its own track. track_feature is ignored in this case.
+    """
+    phi1_idx = feature_names.index("phi1")
+
+    if hasattr(track_path, "items"):
+        tracks_to_apply = dict(track_path.items())
+    else:
+        if track_feature is None:
+            raise ValueError(
+                "track_feature must be specified when track_path is a single path. "
+                "Pass a dict {feature_name: path} to detrend multiple features."
+            )
+        tracks_to_apply = {track_feature: track_path}
+
+    for feat_name, path in tracks_to_apply.items():
+        track, info = _load_track_poly(path)
+        feat_idx = feature_names.index(feat_name)
+
+        n_out_of_range = 0
+        for d in data:
+            phi1_vals = d.x[:, phi1_idx].numpy()
+            out_of_range = (phi1_vals < info["phi1_min"]) | (phi1_vals >= info["phi1_max"])
+            n_out_of_range += out_of_range.sum()
+            trend = track(phi1_vals)
+            d.x[:, feat_idx] = d.x[:, feat_idx] - torch.tensor(trend, dtype=d.x.dtype)
+
+        if n_out_of_range > 0:
+            print(f"Warning: {n_out_of_range} particles had phi1 outside "
+                  f"[{info['phi1_min']}, {info['phi1_max']}) — track ({feat_name}) was extrapolated.")
+
+    return data
 
 
 def prepare_dataloaders(
@@ -177,6 +248,9 @@ def prepare_dataloaders(
     num_workers: int = 0,
     seed: int = 42,
     num_subsamples: int = 1,
+    feature_names: Optional[List[str]] = None,   #added 8/15
+    track_feature: Optional[str] = None,                  #added 8/15
+    track_path: Optional[str] = None, 
 ):
     """
     Create PyTorch Geometric dataloaders for training and evaluation of particle-level stream datasets.
@@ -243,6 +317,14 @@ def prepare_dataloaders(
 
         train_data = [data[i] for i in train_indices]
         val_data = [data[i] for i in val_indices]
+
+##new 8/15: new normalization step to subtract track from data if track_path is provided
+    if track_path is not None:
+        if feature_names is None:
+            raise ValueError("feature_names is required when track_path is set.")
+        train_data = _subtract_track_from_data(train_data, feature_names, track_feature, track_path)
+        val_data = _subtract_track_from_data(val_data, feature_names, track_feature, track_path)
+
 
     # Compute normalization statistics if not provided
     if norm_dict is None:

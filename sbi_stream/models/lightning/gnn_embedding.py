@@ -97,6 +97,9 @@ class GNNEmbedding(pl.LightningModule):
 
         self.output_size = self.mlp_args['output_size']
 
+        #print(f"DEBUG mlp output_size: {self.mlp_args['output_size']}")  # add this
+        #print(f"DEBUG self.output_size: {self.output_size}")  
+
         # Initialize loss function
         # For flow loss, auto-set context_features to match MLP output if not specified
         loss_config = dict(self.loss_args)
@@ -117,7 +120,10 @@ class GNNEmbedding(pl.LightningModule):
         )
 
         # MLP projection
+
+        #print(f"DEBUG after gnn: {embedding.shape}") 
         embedding = self.mlp(embedding)
+        #print(f"DEBUG after mlp: {embedding.shape}")
 
         # Add conditional features if provided
         if self.conditional_mlp is not None:

@@ -9,6 +9,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 
 import wandb
 import ml_collections
+from ml_collections import ConfigDict, config_flags
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import WandbLogger
 from pytorch_lightning.callbacks import (
@@ -131,6 +132,18 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
 
     print('[Data] Dataset type:', data_format)
 
+    # Resolve normalization scheme, added 8/17/2026
+    norm_type = config.get('norm', ConfigDict()).get('type', 'old')
+    if norm_type == 'detrended':
+        track_path = config.norm.track_paths
+        print(f"[Data] Normalization: detrended, tracks: {list(track_path.keys())}")
+    elif norm_type == 'old':
+        track_path = None
+        print("[Data] Normalization: old (no detrending)")
+    else:
+        raise ValueError(f"Unknown config.norm.type: {norm_type}")
+
+
     # read in the dataset and prepare the data loader for training
     if config.data.data_type == 'raw':
         dataset = datasets.read_and_process_raw_datasets(
@@ -148,7 +161,10 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
             data_format=data_format,
             num_datasets=config.data.get('num_datasets', 1),
             start_dataset=config.data.get('start_dataset', 0),
-        )
+            labels=config.data.labels,       # added 5/18
+            #features=config.data.features,   # added 5/18
+    )
+        
     else:
         raise ValueError(f"Unknown data_type {config.data.data_type}")
 
@@ -171,8 +187,10 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
         'num_subsamples': config.data.get('num_subsamples', 1),
         'norm_dict': norm_dict,
         'seed': config.get('seed_data', 0),
+        'feature_names': config.data.features,                       # new 8/15
+        'track_path': track_path,           # new 8/15
+    
     }
-
     if data_format == 'matched_filter':
         channels = config.data.get('channels', None)
         if channels is None:
@@ -337,10 +355,14 @@ def create_callbacks(config: ml_collections.ConfigDict, wandb_logger: WandbLogge
                 plot_tarp=config.visualization.get('plot_tarp', True),
                 plot_rank=config.visualization.get('plot_rank', True),
                 use_default_mplstyle=config.visualization.get('use_default_mplstyle', True),
+                label_names=list(config.data.labels),
             )
         )
 
     return callbacks
+
+import torch
+torch.autograd.set_detect_anomaly(True)
 
 
 def main(config: ml_collections.ConfigDict, workdir: str = "./logging/"):

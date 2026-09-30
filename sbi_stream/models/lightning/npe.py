@@ -80,7 +80,7 @@ class NPE(pl.LightningModule):
             embedding_output_size = self.input_size
         else:
             embedding_output_size = self.embedding_nn.output_size
-
+            print(f"DEBUG embedding_output_size: {embedding_output_size}")  
         # Check if we should initialize flows from embedding_nn.flow
         if (
             self.init_flows_from_embedding
@@ -157,6 +157,10 @@ class NPE(pl.LightningModule):
         batch_size = batch_dict['batch_size']
 
         embedding = self.forward(batch_dict)
+
+        #print(f"DEBUG embedding shape: {embedding.shape}")
+        #print(f"DEBUG target shape: {batch_dict['target'].shape}")
+
         log_prob = self.log_prob(embedding, batch_dict['target'])
         loss = -log_prob.mean()
 
@@ -186,6 +190,8 @@ class NPE(pl.LightningModule):
         batch_size = batch_dict['batch_size']
 
         embedding = self.forward(batch_dict)
+        #print(f"DEBUG embedding: {embedding.shape}")       
+        #print(f"DEBUG target: {batch_dict['target'].shape}") 
         log_prob = self.log_prob(embedding, batch_dict['target'])
         loss = -log_prob.mean()
 

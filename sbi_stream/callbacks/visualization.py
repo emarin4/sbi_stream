@@ -1,6 +1,8 @@
 """Visualization callbacks for NPE training."""
 
+from os import name
 from typing import Optional
+from unicodedata import name
 
 import torch
 import pytorch_lightning as pl
@@ -38,6 +40,7 @@ class NPEVisualizationCallback(pl.Callback):
         plot_tarp: bool = True,
         plot_rank: bool = True,
         use_default_mplstyle: bool = True,
+        label_names: list = None,   # ADD THIS
     ):
         super().__init__()
         self.plot_every_n_epochs = plot_every_n_epochs
@@ -46,7 +49,7 @@ class NPEVisualizationCallback(pl.Callback):
         self.plot_median_v_true = plot_median_v_true
         self.plot_tarp = plot_tarp
         self.plot_rank = plot_rank
-
+        self.label_names = label_names
         if use_default_mplstyle:
             self._set_mplstyle()
 
@@ -191,9 +194,15 @@ class NPEVisualizationCallback(pl.Callback):
             ax.text(0.05, 0.95, f'$R^2$ = {r2:.3f}', transform=ax.transAxes,
                     verticalalignment='top', fontsize=12)
 
-            ax.set_xlabel(f'True Parameter {i}')
-            ax.set_ylabel(f'Median Posterior {i}')
-            ax.set_title(f'Parameter {i}')
+            # ax.set_xlabel(f'True Parameter {i}')
+            # ax.set_ylabel(f'Median Posterior {i}')
+            # ax.set_title(f'Parameter {i}')
+
+            name = self.label_names[i] if self.label_names else f'Parameter {i}'
+            ax.set_xlabel(f'True {name}')
+            ax.set_ylabel(f'Median {name}')
+            ax.set_title(name)
+
             ax.set_aspect('equal', adjustable='box')
 
         plt.tight_layout()
@@ -286,7 +295,11 @@ class NPEVisualizationCallback(pl.Callback):
 
             ax.set_xlabel(f'Rank')
             ax.set_ylabel('Density')
-            ax.set_title(f'Parameter {i}')
+            #ax.set_title(f'Parameter {i}')
+
+            name = self.label_names[i] if self.label_names else f'Parameter {i}'
+            ax.set_title(name)
+
             ax.legend()
 
         plt.tight_layout()

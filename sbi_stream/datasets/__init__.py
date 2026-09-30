@@ -1,10 +1,10 @@
 
-from . import particle_dataset, binned_dataset, matched_filter_dataset
+from . import particle_dataset, binned_dataset #, matched_filter_dataset
 
 _REGISTRY = {
     'particle': particle_dataset,
     'binned': binned_dataset,
-    'matched_filter': matched_filter_dataset,
+    #'matched_filter': matched_filter_dataset,
 }
 
 
