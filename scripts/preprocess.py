@@ -72,11 +72,23 @@ def main(config: ConfigDict):
             uncertainty_model=config.get('uncertainty_model', None),
             include_uncertainty=config.get('include_uncertainty', False),
         )
+
         if data is not None:
             data_out_path = os.path.join(output_dir, f'data.{i}.pkl')
-            print(f"Saving processed data to {data_out_path}")
-            with open(data_out_path, "wb") as f:
-                pickle.dump(data, f)
+
+            if config.data_format == 'matched_filter':
+                data_dict = {
+                    'signal': data[0],
+                    'bg_lsst': data[1],
+                    'bg_roman': data[2],
+                    'labels': data[3],
+                }
+                with open(data_out_path, "wb") as f:
+                    pickle.dump(data_dict, f)
+            else:
+                print(f"Saving processed data to {data_out_path}")
+                with open(data_out_path, "wb") as f:
+                    pickle.dump(data, f)
         else:
             print(f"Error processing dataset {i}, skipping...")
 

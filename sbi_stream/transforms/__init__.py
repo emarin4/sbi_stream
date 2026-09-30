@@ -8,10 +8,6 @@ from .selection_function import RadialSelectionFunction, RandomSelectionStrategy
 from .selection_function import ExponentialSelectionFunction, LinearSelectionFunction
 from .uncertainty import UncertaintySampler
 
-ALL_GRAPHS = {
-    "knn": T.KNNGraph,
-    "radius": T.RadiusGraph,
-}
 
 def build_transformation(
     apply_graph: bool = True,

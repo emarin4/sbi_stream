@@ -123,14 +123,18 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
     Returns:
         Tuple of (train_loader, val_loader, norm_dict)
     """
+    data_format = config.data.get('data_format', 'particle')
+    data_dir = os.path.join(config.data.root, config.data.name)
+
     # read in the dataset and prepare the data loader for training
     if config.data.data_type == 'raw':
-        dataset = datasets.read_raw_particle_datasets(
-            os.path.join(config.data.root, config.data.name),
+        dataset = datasets.read_and_process_raw_datasets(
+            data_dir,
+            data_format=data_format,
             features=config.data.features,
             labels=config.data.labels,
             num_datasets=config.data.get('num_datasets', 1),
-            init=config.data.get('start_dataset', 0),
+            start_dataset=config.data.get('start_dataset', 0),
             # preprocessing arguments
             num_subsamples=config.data.get('num_subsamples', 1),
             num_per_subsample=config.data.get('num_per_subsample', None),
@@ -140,10 +144,11 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
             include_uncertainty=config.data.get('include_uncertainty', False),
         )
     elif config.data.data_type == 'preprocessed':
-        dataset = datasets.read_processed_particle_datasets(
-            os.path.join(config.data.root, config.data.name),
+        dataset = datasets.read_processed_datasets(
+            data_dir,
+            data_format=data_format,
             num_datasets=config.data.get('num_datasets', 1),
-            init=config.data.get('start_dataset', 0),
+            start_dataset=config.data.get('start_dataset', 0),
         )
     else:
         raise ValueError(f"Unknown data_type {config.data.data_type}")
@@ -157,8 +162,9 @@ def prepare_data(config: ml_collections.ConfigDict, embedding_norm_dict=None):
         norm_dict = None
 
     # Create dataloaders with existing norm_dict
-    train_loader, val_loader, norm_dict = datasets.prepare_particle_dataloaders(
+    train_loader, val_loader, norm_dict = datasets.prepare_dataloaders(
         dataset,
+        data_format=data_format,
         train_frac=config.train_frac,
         train_batch_size=config.train_batch_size,
         eval_batch_size=config.eval_batch_size,
